@@ -1,0 +1,436 @@
+---
+title: "東京大(理系）2024・数学をJulia言語で考えてみる"
+author: "Dan Shimizu (@dannchu)"
+date: "2/29/2024"
+jupyter: julia-1.10
+---
+## はじめに
+
+2024年2月20日に行われた東京大学の入学試験の理系の数学の問題を**Julia言語**を用いて，「解く」というよりも「考えて」みました。コードを書くときはできるだけ，`julia`のパッケージを利用しました。
+
+また，[quarto](https://quarto.org)というパブリッシング・システムを用いてWebページを作成しました。基本`Markdown`で，コードの読み込みも容易です。今回は利用していませんが，新たな数式処理の[typst](https://typst.app)も実装可能です。
+
+東大の数学の問題については　さんのLaTeXのコード利用させていただきました。（一部MarkDown用に修正しています。）
+
+## 第1問
+### 問題
+座標空間内の点 $\mathrm{A}(0,\ -1,\ 1)$をとる.\ $xy$平面上の点Pが次の条件 (i),\ (ii),\ (iii) をすべて満たすとする.
+
+(i)　P は原点 O と異なる.
+
+(ii)　$\displaystyle \angle \mathrm{AOP}\geqq \frac{2}{3}\pi$
+
+(iii)　$\displaystyle \angle \mathrm{OAP}\leqq \frac{\pi}{6}$
+
+P がとりうる範囲を $xy$平面上に図示せよ.
+
+
+### julia言語で図示するコード作成
+#### 方針
+$\text{A}(0,-1,1)$，$\text{P}(x,y,0)$として，
+
+$$\dfrac{\overrightarrow{\text{OA}}\cdot\overrightarrow{\text{OP}}}{\big|\overrightarrow{\text{OA}}\big|\big|\overrightarrow{\text{OP}}\big|}\leqq \cos\dfrac{2\pi}3\,\wedge \,\cos\dfrac{\pi}6\leqq \dfrac{\overrightarrow{\text{AO}}\cdot\overrightarrow{\text{AP}}}{\big|\overrightarrow{\text{AO}}\big|\big|\overrightarrow{\text{AP}}\big|}$$
+
+#### コード
+- 線形代数パッケージ`LinearAlgebra.jl` を利用
+- 描画パッケージ `Plots.jl` を利用
+
+
+```{julia}
+#| code-fold: true
+#| code-summary: "Show the code"
+using LinearAlgebra , Plots
+
+
+function val1(x,y)
+    A = [ 0 -1 1 ]
+    P = [ x y 0]
+    dot(A, P) / norm(A,2) / norm(P,2)
+end
+
+function val2(x,y)
+    A = [ 0 -1 1 ]
+    P = [ x y 0]
+    dot(-A, P-A) / norm(-A,2) / norm(P-A,2)
+end
+
+function f(x,y)
+    if x == y == 0
+        return 0
+    elseif val1(x,y) <= cos(2π/3) && cos(π/6) <= val2(x,y) 
+        return 1
+    else 0.8
+    end
+end
+
+contour(-3:0.01:3 , -3:0.01:3 ,f,fill=true,aspectratio=true)
+
+
+```
+
+
+
+
+
+## 第2問
+### 問題
+
+次の関数 $f(x)$を考える.
+
+$$ f(x)=\int_{0}^{1}\frac{|t-x|}{1+t^{2}}\ dt\ \ (0\leqq x\leqq 1) $$
+
+(1)　$\displaystyle 0<\alpha <\frac{\pi}{4}$を満たす実数 $\alpha$で,\ $f^{\prime}(\tan{\alpha})=0$となるものを求めよ.
+
+(2)　(1) で求めた $\alpha$に対し,\ $\tan{\alpha}$の値を求めよ.
+
+(3)　関数 $f(x)$の区間 $0\leqq x\leqq 1$における最大値と最小値を求めよ.\ 必要ならば,\ $0.69<\log 2<0.7$であることを用いてよい.
+
+### julia言語で最大値・最小値を求めるコードを作成
+
+#### 関数を定義してグラフを作成
+- 数値積分パッケージ `QuadGK.jl`を利用
+- 描画パッケージ `Plots.jl` を利用
+
+```{julia}
+#| code-fold: true
+#| code-summary: "Show the code"
+using QuadGK , Plots
+
+
+f(x) = quadgk(t -> abs(t-x)/(1+t^2), 0, 1)[1]
+
+plot(f,xlim=(0,1),label="y=f(x)")
+
+
+```
+
+#### 最大値・最小値を求める。
+
+- 数値積分パッケージ `QuadGK.jl`を利用
+- 最小値求値パッケージ `Optim.jl` を利用
+
+
+```{julia}
+#| code-fold: true
+#| code-summary: "Show the code"
+using QuadGK , Optim
+
+
+f(x) = quadgk(t -> abs(t-x)/(1+t^2), 0, 1)[1]
+g(x) = -f(x)
+
+minf = optimize(f, 0.0, 1.0)
+maxf = optimize(g, 0.0, 1.0)
+
+println("x=",minf |> Optim.minimizer,"のとき最小値",minf |> Optim.minimum)
+
+println("x=",maxf |> Optim.minimizer,"のとき最大値",maxf |> Optim.minimum |> x -> -x)
+
+
+```
+
+
+
+## 第3問
+### 問題
+座標平面上を次の規則 (i),\ (ii) に従って 1 秒ごとに動く点 P を考える.
+
+
+(i)　最初に,\ Pは点 $(2,\ 1)$にいる.
+
+(ii)　ある時刻で P が点 $(a,\ b)$にいるとき,\ その 1 秒後には P は
+
+- 確率 $\displaystyle\frac{1}{3}$で $x$軸に関して $(a,\ b)$と対称な点
+
+
+- 確率 $\displaystyle\frac{1}{3}$で $y$軸に関して $(a,\ b)$と対称な点
+
+- 確率 $\displaystyle\frac{1}{6}$で直線 $y=x$に関して $(a,\ b)$と対称な点
+
+- 確率 $\displaystyle\frac{1}{6}$で直線 $y=-x$に関して $(a,\ b)$と対称な点
+
+にいる.
+
+以下の問に答えよ. ただし,\ (1)については,\ 結論のみを書けばよい.
+
+(1)　Pがとりうる点の座標をすべて求めよ.
+
+(2)　$n$を正の整数とする.\ 最初から $n$秒後に P が点 $(2,\ 1)$にいる確率と,\ 最初から $n$秒後に P が点 $(-2,\ -1)$にいる確率は等しいことを示せ.
+
+(3)　$n$を正の整数とする.\ 最初から $n$秒後に P が点 $(2,\ 1)$にいる確率を求めよ.
+
+### Julia言語で$n$秒後の確率を求めるコードを作成
+
+#### 方針
+行列で考える。求める確率は$a_n$
+
+[@doraTeX(https://twitter.com/doraTeX)さんのブログは参考にしました。
+
+[https://qiita.com/doraTeX/items/117b9ba4bf2e28beb598](https://qiita.com/doraTeX/items/117b9ba4bf2e28beb598)
+
+- $\begin{pmatrix}
+    a_n \\ b_n \\ c_n \\ d_n \\ e_n \\ f_n \\ g_n \\ h_n\\
+    \end{pmatrix}=
+    \dfrac16\begin{pmatrix}
+            0 &  1 &  0 &  2 &  0 &  1 &  0 &  2\\
+            1 & 0 &  2 &  0 &  1 &  0 &  2 &  0 \\
+            0 &  2 &  0 &  1 &  0 &  2 &  0 &  1\\
+            2 &  0 &  1 &  0 &  2 &  0 &  1 &  0\\
+            0 &  1 &  0 &  2 &  0 &  1 &  0 &  2\\
+            1 &  0 &  2 &  0 &  1 &  0 &  2 &  0\\
+            0 &  2 &  0 &  1 &  0 &  2 &  0 &  1\\
+            2 &  0 &  1 &  0 &  2 &  0 &  1 &  0\\
+            \end{pmatrix}^{n}
+    \begin{pmatrix}
+    1 \\ 0 \\ 0 \\ 0 \\ 0 \\ 0 \\ 0 \\ 0\\
+    \end{pmatrix}$
+
+#### コードを作成
+
+
+```{julia}
+#| code-fold: true
+#| code-summary: "Show the code"
+
+function f(n)
+    A = 1//6* [
+    0 1 0 2 0 1 0 2
+    1 0 2 0 1 0 2 0
+    0 2 0 1 0 2 0 1
+    2 0 1 0 2 0 1 0
+    0 1 0 2 0 1 0 2
+    1 0 2 0 1 0 2 0
+    0 2 0 1 0 2 0 1
+    2 0 1 0 2 0 1 0
+    ]
+
+    X = [
+    1
+    0
+    0
+    0
+    0
+    0
+    0
+    0
+    ]
+
+    if n == 1
+        return X[1]
+    else
+        for i = 1:n-1
+            X = A*X
+        end
+        return X[1]
+    end
+end
+
+for j = 1:10
+    println("n=$j のとき，確率は",f(j))
+end
+
+
+```
+
+## 第4問
+
+### 問題
+$\displaystyle f(x)=-\frac{\sqrt{2}}{4}x^{2}+4\sqrt{2}$とおく.\ $0<t<4$を満たす実数 $t$に対し,\ 座標平面上の点 $(t,\ f(t))$を通り,\ この点において放物線 $y=f(x)$と共通の接線を持ち,\  $x$軸上に中心を持つ円を $C_{t}$とする.
+
+(1)　円 $C_{t}$の中心の座標を $(c(t),\ 0)$,\ 半径を $r(t)$とおく.\ $c(t)$と $\{ r(t)\}^{2}$を $t$の整式で表せ.
+
+(2)　実数$a$は $0<a<f(3)$を満たすとする.\ 円 $C_{t}$が点 $(3,\ a)$を通るような実数 $t$は $0<t<4$ の範囲にいくつあるか.
+ 
+
+### Julia言語で実数$t$の個数を図で確認
+
+#### 関数を定義してグラフを作成
+
+- $\displaystyle f(x) = -\frac{\sqrt{2}}{4}x^{2}+4\sqrt{2}$
+
+- $\displaystyle  c(t) = \frac{f(t)}{f'(t)} +t$
+
+- $\displaystyle r(t) = \sqrt{(t-c(t))^2+f(t)^2}$
+
+- $\displaystyle g(t) = r(t)^2-(3-c(t))^2$
+
+- $\displaystyle h(t) = - g(t)$
+
+- $y=g(t)$のグラフを見る
+
+- $y=a^2$のグラフを$0<a^2<f(3)^2$の範囲で考える。
+
+- 自動微分パッケージ `Zygote.jl` を利用
+  
+- 描画パッケージ `Plots.jl` を利用
+ 
+```{julia}
+#| code-fold: true
+#| code-summary: "Show the code"
+
+using Zygote , Plots
+f(x) = -sqrt(2)/4 *x^2+4*sqrt(2)
+c(t) = f(t)*f'(t)+t
+r(t) = sqrt((t-c(t))^2+f(t)^2)
+g(t) = r(t)^2-(3-c(t))^2
+
+plot(g,xlim=(0,4),label="y=g(x)")
+plot!(x->0,label="y=0")
+plot!(x->f(3)^2,label="y=f(3)^2=$(f(3)^2)")
+
+
+
+```
+
+#### 個数を調べるための極値・端点を調べる。
+
+
+- 自動微分パッケージ `Zygote.jl` を利用
+  
+- 最小値求値パッケージ `Optim.jl` を利用
+  
+
+```{julia}
+#| code-fold: true
+#| code-summary: "Show the code"
+
+using Zygote , Optim
+f(x) = -sqrt(2)/4 *x^2+4*sqrt(2)
+c(t) = f(t)*f'(t)+t
+r(t) = sqrt((t-c(t))^2+f(t)^2)
+g(t) = r(t)^2-(3-c(t))^2
+h(t) = -g(t)
+
+println( optimize(g, 1.0 , 3.0))
+
+println( optimize(h, 2.0 , 4.0))
+
+println( optimize(g, 3.0 , 4.0))
+
+
+```
+
+## 第5問
+
+### 問題
+
+座標空間内に3点 $\mathrm{A}(1,\ 0,\ 0),\ \mathrm{B}(0,\ 1,\ 0),\ \mathrm{C}(0,\ 0,\ 1)$をとり,\ D を線分 AC の中点とする.\ 三角形 ABD の周および内部を $x$軸のまわりに 1 回転させて得られる立体の体積を求めよ.
+
+### Julia言語でまず回転体を見てみよう
+
+```{julia}
+#| code-fold: true
+#| code-summary: "Show the code"
+using Plots
+plotlyjs()
+
+A = [1,0,0]
+B = [0,1,0]
+C = [0,0,1] 
+f(u,v) = A+(u/2 *(C-A)+(1-u)*(B-A))*v
+us = vs = range(0, 1, length=10)
+
+x = [f(u,v)[1] for u in us , v in vs]
+y = [f(u,v)[2] for u in us , v in vs]
+z = [f(u,v)[3] for u in us , v in vs]
+
+surface(x,y,z,xlabel="x",ylabel="y",zlabel="z",size=(700,500),color=:yellow)
+
+function uchigawa(k,θ)
+    if 0≤k≤1/3
+        [k,sqrt((1-2k)^2+k^2)*cos(θ),sqrt((1-2k)^2+k^2)*sin(θ)]
+    elseif 1/3≤k≤1
+        [k,(1-k)/sqrt(2) *cos(θ),(1-k)/sqrt(2) *sin(θ)]
+    end
+end
+
+n=100
+ks = range(0, 1, length=n)
+θs = range(0 ,2π,length=n)
+
+x = [uchigawa(k,θ)[1] for k in ks , θ in θs]
+y = [uchigawa(k,θ)[2] for k in ks , θ in θs]
+z = [uchigawa(k,θ)[3] for k in ks , θ in θs]
+
+
+surface!(x,y,z,xlabel="x",ylabel="y",zlabel="z",size=(700,500),alpha=0.7,color=:red)
+
+sotogawa(k,θ) = [k,(1-k)*cos(θ),(1-k)*sin(θ)]
+n=100
+ks = range(0, 1, length=n)
+θs = range(0 ,2π,length=n)
+
+x = [sotogawa(k,θ)[1] for k in ks , θ in θs]
+y = [sotogawa(k,θ)[2] for k in ks , θ in θs]
+z = [sotogawa(k,θ)[3] for k in ks , θ in θs]
+
+
+surface!(x,y,z,xlabel="x",ylabel="y",zlabel="z",size=(700,500),alpha=0.5,color=:blue)
+```
+
+
+
+## 第6問
+
+$2$以上の整数で,\ 1 とそれ自身以外に正の約数を持たない数を素数という.\ 以下の問いに答えよ.
+
+(1)　$f(x)=x^{3}+10x^{2}+20x$とする.\ $f(n)$が素数となるような整数 $n$をすべて求めよ.
+
+(2)　$a,\ b$を整数の定数とし,\ $g(x)=x^{3}+ax^{2}+bx$とする.\ $g(n)$が素数となるような整数 $n$の個数は $3$個以下であることを示せ.
+
+
+### (1)を調べてみよう。
+
+- 素数パッケージ`Primes.jl`を利用
+
+```{julia}
+#| code-fold: true
+#| code-summary: "Show the code"
+using Primes
+
+
+f(x) = x^3+10x^2+20x
+
+n=100
+p=[]
+for i = -n:n
+    if f(i) |> 	isprime
+        append!(p,i)
+    end
+end
+ 
+p
+```
+
+
+
+### (2)を調べてみよう。
+
+- 素数パッケージ`Primes.jl`を利用
+
+```{julia}
+#| code-fold: true
+#| code-summary: "Show the code"
+using Primes
+
+g(a,b,x) = x^3+a*x^2+b*x
+
+
+n=10
+p=[]
+for a = -n:n , b = -n:n
+    t = [a,b]
+    for i = -n:n
+        if g(a,b,i) |> 	isprime
+            append!(t,i)
+        end
+        push!(p,t)
+    end
+end
+ 
+for j =1:length(p)
+    if p[j] |>length == 5
+        println(p[j])
+    end
+end
+```

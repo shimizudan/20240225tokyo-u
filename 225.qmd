@@ -1,0 +1,73 @@
+---
+format:
+  typst:
+    papersize: a4
+    margin:
+      x: 1cm
+      y: 1cm
+jupyter: julia-1.10
+---
+
+
+```{=typst} 
+
+#set text(
+  font: 
+  ("New Computer Modern Math","BIZ UDGothic"), 
+  size: 11pt,
+)
+
+= 東京大学（理系）2024・数学
+== 第1問#v(5mm)
+
+座標空間内の点A$(0,-1,1)$をとる。$x y$#h(.5mm)平面上の点Pが次の条件 (i), (ii), (iii) をすべて満たすとする.
+
+#set enum(numbering: "(i)")
++ P は原点 O と異なる.#v(5mm)
++ $display(angle #text[AOP] gt.equiv 2/3 pi)$#v(5mm)
++ $display(angle #text[OAP] lt.equiv pi/6)$#v(5mm)
+
+P がとりうる範囲を$x y$#h(.5mm)平面上に図示せよ.
+
+
+=== 解答
+
+
+P$(x,y,0)$とおく。
+
++ $display(angle #text[AOP] gt.equiv 2/3 pi)$より，
+
+  $ cos angle #text[AOP]= (arrow(#text[OA]) dot arrow(#text[OP]) )/(abs(arrow(#text[OA])) abs(arrow(#text[OP])))  = (vec(0,-1,1) dot vec(x,y,0))/(sqrt(2) sqrt(x^2+y^2)) = (-y)/(sqrt(2) sqrt(x^2+y^2)) lt.equiv -1/2 dots #text[①] $
+
+
+
++ $display(angle #text[OAP] lt.equiv pi/6 )$より，
+
+  $ cos angle #text[OAP]= (arrow(#text[AO]) dot arrow(#text[AP]) )/(abs(arrow(#text[AO])) abs(arrow(#text[AP])))  = (vec(0,1,-1) dot vec(x,y+1,-1))/(sqrt(2) sqrt(x^2+(y+1)^2+(-1)^2)) = (y+2)/(sqrt(2) sqrt(x^2+y^2+2y+2)) gt.equiv sqrt(3)/2 dots #text[②] $
+
+$#text[①] or #text[②]$ を`julia`で図示する。
+
+```
+
+```{julia}
+function val1(x,y)
+    -y/sqrt(2) /sqrt(x^2+y^2)
+end
+
+function val2(x,y)
+    (y+2)/sqrt(2) /sqrt(x^2+y^2+2y+2)
+end
+
+function f(x,y)
+    if x == y == 0
+        return 0
+    elseif val1(x,y) <= -1/2 && sqrt(3)/2 <= val2(x,y) 
+        return 1
+    else 0.8
+    end
+end
+
+using Plots
+
+contour(-3:0.01:3 , -3:0.01:3 ,f,fill=true,aspectratio=true)
+```
